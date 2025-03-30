@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>元素周期表测验</title>
+    <style>
+        /* 基础样式 */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0 100px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            color: #2c3e50;
+            margin: 15px 0;
+            text-align: center;
+            padding: 0 10px;
+        }
+
+        /* 周期表容器 */
+        #table-container {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            padding: 10px 0;
+            scrollbar-width: none;
+        }
+
+        #table-container::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* 周期表布局 */
+        #periodic-table {
+            display: grid;
+            gap: 2px;
+            margin: 0 auto;
+            min-width: 1080px;
+            padding: 5px;
+            position: relative;
+        }
+
+        /* 元素格子 */
+        .element {
+            background-color: #ffffff;
+            border: 1px solid #cccccc;
+            min-width: 60px;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .element:hover {
+            background-color: #e0e0ff;
+            transform: scale(1.05);
+            z-index: 2;
+        }
+
+        /* 信息面板 */
+        #info-panel {
+            position: fixed;
+            width: 100%;
+            max-width: 680px;
+            background: white;
+            border-radius: 12px 12px 0 0;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 20px;
+            transition: bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 100;
+            bottom: -100vh;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        #info-panel.active {
+            bottom: 0;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #f0f0f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.2rem;
+        }
+
+        /* 电子层信息 */
+        #electron-levels {
+            margin: 15px 0;
+            padding: 15px;
+            background: #f8f8f8;
+            border-radius: 8px;
+        }
+
+        .electron-layer {
+            display: inline-block;
+            margin: 8px 10px;
+            padding: 8px 15px;
+            background: white;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        /* 画布样式 */
+        #electron-canvas {
+            border: 1px solid #ddd;
+            margin: 15px auto;
+            display: block;
+        }
+
+        /* 移动端适配 */
+        @media (max-width: 768px) {
+            #periodic-table {
+                min-width: 180vw;
+                grid-template-columns: repeat(18, 10vw);
+                grid-template-rows: repeat(7, 10vw);
+            }
+
+            .element {
+                min-width: 10vw;
+                min-height: 10vw;
+                font-size: 3vw;
+            }
+
+            h1 {
+                font-size: 1.2rem;
+            }
+
+            #info-panel {
+                width: 95%;
+                padding: 15px;
+            }
+
+            #electron-canvas {
+                width: 200px;
+                height: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>元素周期表测验（1-36号元素）</h1>
+    
+    <div id="table-container">
+        <div id="periodic-table"></div>
+    </div>
+    
+    <div id="info-panel">
+        <div class="close-btn">×</div>
+        <h2 style="margin-bottom: 15px;">元素信息</h2>
+        <p>原子序数: <span id="atomic-number">-</span></p>
+        <p>元素名称: <span id="element-name">-</span></p>
+        
+        <div id="electron-levels">
+            <h3 style="margin-bottom: 10px;">电子层分布</h3>
+            <div id="layers-display"></div>
+        </div>
+
+        <canvas id="electron-canvas" width="260" height="260"></canvas>
+    </div>
+
+    <script>
+        // 元素数据
+        const elements = {
+            1:  { name: '氢', position: [1, 1], electrons: [1] },
+            2:  { name: '氦', position: [1, 18], electrons: [2] },
+            3:  { name: '锂', position: [2, 1], electrons: [2, 1] },
+            4:  { name: '铍', position: [2, 2], electrons: [2, 2] },
+            5:  { name: '硼', position: [2, 13], electrons: [2, 3] },
+            6:  { name: '碳', position: [2, 14], electrons: [2, 4] },
+            7:  { name: '氮', position: [2, 15], electrons: [2, 5] },
+            8:  { name: '氧', position: [2, 16], electrons: [2, 6] },
+            9:  { name: '氟', position: [2, 17], electrons: [2, 7] },
+            10: { name: '氖', position: [2, 18], electrons: [2, 8] },
+            11: { name: '钠', position: [3, 1], electrons: [2, 8, 1] },
+            12: { name: '镁', position: [3, 2], electrons: [2, 8, 2] },
+            13: { name: '铝', position: [3, 13], electrons: [2, 8, 3] },
+            14: { name: '硅', position: [3, 14], electrons: [2, 8, 4] },
+            15: { name: '磷', position: [3, 15], electrons: [2, 8, 5] },
+            16: { name: '硫', position: [3, 16], electrons: [2, 8, 6] },
+            17: { name: '氯', position: [3, 17], electrons: [2, 8, 7] },
+            18: { name: '氩', position: [3, 18], electrons: [2, 8, 8] },
+            19: { name: '钾', position: [4, 1], electrons: [2, 8, 8, 1] },
+            20: { name: '钙', position: [4, 2], electrons: [2, 8, 8, 2] },
+            21: { name: '钪', position: [4, 3], electrons: [2, 8, 9, 2] },
+            22: { name: '钛', position: [4, 4], electrons: [2, 8, 10, 2] },
+            23: { name: '钒', position: [4, 5], electrons: [2, 8, 11, 2] },
+            24: { name: '铬', position: [4, 6], electrons: [2, 8, 13, 1] },
+            25: { name: '锰', position: [4, 7], electrons: [2, 8, 13, 2] },
+            26: { name: '铁', position: [4, 8], electrons: [2, 8, 14, 2] },
+            27: { name: '钴', position: [4, 9], electrons: [2, 8, 15, 2] },
+            28: { name: '镍', position: [4, 10], electrons: [2, 8, 16, 2] },
+            29: { name: '铜', position: [4, 11], electrons: [2, 8, 18, 1] },
+            30: { name: '锌', position: [4, 12], electrons: [2, 8, 18, 2] },
+            31: { name: '镓', position: [4, 13], electrons: [2, 8, 18, 3] },
+            32: { name: '锗', position: [4, 14], electrons: [2, 8, 18, 4] },
+            33: { name: '砷', position: [4, 15], electrons: [2, 8, 18, 5] },
+            34: { name: '硒', position: [4, 16], electrons: [2, 8, 18, 6] },
+            35: { name: '溴', position: [4, 17], electrons: [2, 8, 18, 7] },
+            36: { name: '氪', position: [4, 18], electrons: [2, 8, 18, 8] }
+        };
+
+        // 初始化周期表
+        const table = document.getElementById('periodic-table');
+        for (let i = 1; i <= 36; i++) {
+            const element = document.createElement('div');
+            element.className = 'element';
+            if (elements[i]) {
+                element.style.gridRow = elements[i].position[0];
+                element.style.gridColumn = elements[i].position[1];
+                element.dataset.atomicNumber = i;
+                element.addEventListener('click', showElementInfo);
+            }
+            table.appendChild(element);
+        }
+
+        // 显示元素信息
+        function showElementInfo(event) {
+            const element = event.target.closest('.element');
+            const atomicNumber = element.dataset.atomicNumber;
+            const elementInfo = elements[atomicNumber];
+            const panel = document.getElementById('info-panel');
+
+            // 更新信息
+            document.getElementById('atomic-number').textContent = atomicNumber;
+            document.getElementById('element-name').textContent = elementInfo.name;
+            drawElectronDiagram(elementInfo.electrons);
+            updateElectronLevelsDisplay(elementInfo.electrons);
+
+            // 移动端自动滚动
+            if (window.innerWidth <= 768) {
+                const elementRect = element.getBoundingClientRect();
+                const targetScroll = window.scrollY + elementRect.top - 100;
+                window.scrollTo({ top: targetScroll, behavior: 'smooth' });
+            }
+
+            // 显示面板
+            panel.classList.add('active');
+        }
+
+        // 更新电子层显示
+        function updateElectronLevelsDisplay(electrons) {
+            const layersDisplay = document.getElementById('layers-display');
+            const layerNames = ['K', 'L', 'M', 'N', 'O', 'P', 'Q'];
+            
+            const html = electrons.map((count, index) => `
+                <div class="electron-layer">
+                    <span>${layerNames[index]}层: ${count}电子</span>
+                </div>
+            `).join('');
+
+            layersDisplay.innerHTML = html + `
+                <div style="margin-top:15px; color:#666;">
+                    总电子数: ${electrons.reduce((a, b) => a + b, 0)}
+                </div>
+            `;
+        }
+
+        // 绘制电子结构图
+        function drawElectronDiagram(electrons) {
+            const canvas = document.getElementById('electron-canvas');
+            const ctx = canvas.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+            
+            // 高清画布设置
+            const size = 260;
+            canvas.width = size * dpr;
+            canvas.height = size * dpr;
+            canvas.style.width = size + 'px';
+            canvas.style.height = size + 'px';
+            ctx.scale(dpr, dpr);
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 绘制参数
+            const center = size / 2;
+            const maxLayers = electrons.length;
+            const baseRadius = 15;
+            const radiusStep = (size/2 - 40) / maxLayers;
+
+            // 原子核
+            ctx.fillStyle = '#ff4444';
+            ctx.beginPath();
+            ctx.arc(center, center, 8, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 各电子层
+            electrons.forEach((count, index) => {
+                const radius = baseRadius + index * radiusStep;
+                ctx.strokeStyle = index % 2 ? '#4a90e2' : '#7ed321';
+                ctx.setLineDash([5, 3]);
+                ctx.beginPath();
+                ctx.arc(center, center, radius, 0, Math.PI * 2);
+                ctx.stroke();
+
+                if(count > 0) {
+                    const angleStep = (Math.PI * 2) / count;
+                    for(let i = 0; i < count; i++) {
+                        const angle = angleStep * i;
+                        const x = center + Math.cos(angle) * radius;
+                        const y = center + Math.sin(angle) * radius;
+                        
+                        ctx.fillStyle = '#6666ff';
+                        ctx.beginPath();
+                        ctx.arc(x, y, 4, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+            });
+        }
+
+        // 关闭面板功能
+        document.querySelector('.close-btn').addEventListener('click', () => {
+            const panel = document.getElementById('info-panel');
+            panel.classList.remove('active');
+            
+            if (window.innerWidth <= 768) {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        });
+
+        // 点击外部关闭面板
+        document.addEventListener('click', (e) => {
+            const panel = document.getElementById('info-panel');
+            if (!e.target.closest('#info-panel') && 
+                !e.target.closest('.element') &&
+                panel.classList.contains('active')) {
+                panel.classList.remove('active');
+            }
+        });
+
+        // 移动端触摸优化
+        document.querySelectorAll('.element').forEach(el => {
+            el.addEventListener('touchstart', () => {
+                el.style.transform = 'scale(0.95)';
+            });
+            el.addEventListener('touchend', () => {
+                el.style.transform = '';
+            });
+        });
+    </script>
+</body>
+</html>
